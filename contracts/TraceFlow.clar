@@ -210,9 +210,13 @@
       (current-scan-count (default-to { count: u0 } (map-get? qr-scan-count { qr-code-hash: qr-code-hash })))
       (new-scan-id (+ (get count current-scan-count) u1))
     )
+    (asserts! (is-eq (len qr-code-hash) u32) ERR-INVALID-INPUT)
     
     (asserts! (get is-valid qr-info) ERR-QR-CODE-INVALID)
     (asserts! (> (len location) u0) ERR-INVALID-INPUT)
+    
+    (asserts! (is-some (map-get? qr-code-registry { qr-code-hash: qr-code-hash })) ERR-NOT-FOUND)
+    (asserts! (< new-scan-id u100000) ERR-INVALID-INPUT)
     
     (map-set qr-scan-history
       { qr-code-hash: qr-code-hash, scan-id: new-scan-id }
@@ -419,6 +423,9 @@
       (stage (unwrap! (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id }) ERR-NOT-FOUND))
       (product (unwrap! (map-get? products { product-id: product-id }) ERR-NOT-FOUND))
     )
+    ;; Additional validations for signer
+    (asserts! (not (is-eq signer CONTRACT-OWNER)) ERR-INVALID-INPUT)
+    (asserts! (not (is-eq signer tx-sender)) ERR-INVALID-INPUT)
     
     (asserts! (> product-id u0) ERR-INVALID-INPUT)
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
@@ -541,9 +548,14 @@
 
 ;; Get product by QR code
 (define-read-only (get-product-by-qr (qr-code-hash (buff 32)))
-  (match (map-get? qr-code-registry { qr-code-hash: qr-code-hash })
-    qr-info (ok (map-get? products { product-id: (get product-id qr-info) }))
-    (ok none)
+  (let (
+    (qr-info (map-get? qr-code-registry { qr-code-hash: qr-code-hash }))
+  )
+    (asserts! (is-eq (len qr-code-hash) u32) ERR-INVALID-INPUT)
+    (match qr-info
+      qr-data (ok (map-get? products { product-id: (get product-id qr-data) }))
+      (ok none)
+    )
   )
 )
 
