@@ -1,8 +1,8 @@
-# TraceFlow 🔍📱🌡️
+# TraceFlow 🔍📱🌡️🔐
 
-> **Transparent Supply Chain Tracking with QR Code Integration and IoT Sensor Monitoring on Stacks Blockchain**
+> **Transparent Supply Chain Tracking with QR Code Integration, IoT Sensor Monitoring, and Multi-Signature Verification on Stacks Blockchain**
 
-TraceFlow is a decentralized supply chain transparency solution built on the Stacks blockchain using Clarity smart contracts. It enables manufacturers, suppliers, and distributors to create immutable records of product journey from creation to consumer delivery, now enhanced with integrated QR code generation, verification, and real-time IoT sensor monitoring for comprehensive environmental and location tracking.
+TraceFlow is a decentralized supply chain transparency solution built on the Stacks blockchain using Clarity smart contracts. It enables manufacturers, suppliers, and distributors to create immutable records of product journey from creation to consumer delivery, enhanced with integrated QR code generation, verification, real-time IoT sensor monitoring, and multi-signature verification for critical supply chain stages.
 
 ## 🎯 Overview
 
@@ -13,7 +13,8 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **QR Code Scanning**: Track product scans with location and timestamp data
 - **IoT Sensor Integration**: Connect with temperature, humidity, and location sensors for real-time monitoring
 - **Environmental Monitoring**: Track temperature and humidity conditions throughout the supply chain
-- **Sensor Data Analytics**: Historical tracking of environmental conditions and sensor readings
+- **Multi-Signature Verification**: Require multiple authorized parties to approve critical supply chain stages
+- **Distributed Trust**: Enhance security by requiring consensus from multiple stakeholders
 - **Stage Tracking**: Each supply chain stage is recorded with location, handler, and timestamp
 - **Handler Authorization**: Only authorized entities can add supply chain stages
 - **Verification System**: Contract owner can verify stages and invalidate QR codes for security
@@ -33,24 +34,35 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **Security Controls**: Invalidate QR codes for recalls or security incidents
 - **Transparency**: Query product history, QR scan data, and current status
 
+### Multi-Signature Features 🔐
+- **Critical Stage Protection**: Mark important supply chain stages as requiring multi-signature approval
+- **Configurable Signers**: Define which parties must sign off on each stage
+- **Signature Tracking**: Track who has signed and who hasn't for each stage
+- **Automatic Finalization**: Stages automatically finalize once required signatures are collected
+- **Role-Based Signing**: Associate each required signer with their role (e.g., "Quality Inspector", "Customs Officer")
+- **Signature Data**: Include additional context or verification data with each signature
+- **Consensus Enforcement**: Stages requiring multi-sig cannot be verified until fully signed
+- **Audit Trail**: Complete history of all signatures with timestamps
+
 ### IoT Sensor Features
 - **Sensor Registration**: Register IoT sensors with type, location, and ownership information
-- **Sensor Assignment**: Assign sensors to specific products for monitoring
 - **Real-time Data Collection**: Record temperature, humidity, and location data from IoT devices
 - **Environmental Monitoring**: Track environmental conditions throughout the supply chain journey
 - **Data Validation**: Validate sensor readings within acceptable ranges (temperature: -50°C to 100°C, humidity: 0-100%)
 - **Historical Analytics**: Query historical sensor data for products and locations
+- **Alert System**: Automatic alerts for out-of-range environmental conditions
 - **Multi-sensor Support**: Support for various sensor types (temperature, humidity, location, etc.)
-- **Access Control**: Sensor owners and product manufacturers can record readings
+- **Access Control**: Only authorized sensors can submit readings
 
 ### Smart Contract Features
 - **Auto-Generated QR Codes**: Unique QR codes generated using cryptographic hashing for each product
 - **QR Code Verification**: Blockchain-based verification system to prevent counterfeiting
-- **Scan Tracking**: Complete audit trail of all QR code scans with timestamps and locations
+- **Scan Tracking**: Complete audit trail of all QR code scanning activity
 - **IoT Data Integrity**: Immutable storage of sensor readings and environmental data
-- **Sensor Network Management**: Register and manage IoT sensors across the supply chain
+- **Multi-Party Consensus**: Distributed approval system for critical decisions
+- **Signature Management**: Track and verify multi-party signatures
 - **Real-time Monitoring**: Track products and environmental conditions in real-time
-- **Immutable Records**: All supply chain, QR scan, and sensor data is permanently stored on blockchain
+- **Immutable Records**: All supply chain, QR scan, sensor, and signature data is permanently stored on blockchain
 - **Access Control**: Role-based permissions for different participants
 - **Data Integrity**: Prevents tampering with supply chain, QR code, and sensor information
 - **Security Controls**: Ability to invalidate compromised QR codes and deactivate sensors
@@ -93,20 +105,71 @@ clarinet check
 (contract-call? .traceflow register-product "Organic Cotton T-Shirt" "BATCH-2024-001")
 ```
 
-### Register IoT Sensor
+### Add Supply Chain Stage (with Multi-Signature Requirement)
 ```clarity
-(contract-call? .traceflow register-iot-sensor "TEMP001" "temperature" "Warehouse A - Delhi")
+;; Add a critical stage that requires multiple signatures
+(contract-call? .traceflow add-supply-chain-stage 
+  u1 
+  "Quality Control Inspection" 
+  "Manufacturing Facility - Delhi" 
+  "Final quality inspection before shipment"
+  true) ;; requires-multisig = true
 ```
 
-### Assign Sensor to Product
+### Add Required Signers for Multi-Sig Stage
 ```clarity
-(contract-call? .traceflow assign-sensor-to-product u1 "TEMP001")
+;; Add quality inspector as required signer
+(contract-call? .traceflow add-required-signer 
+  u1 
+  u3 
+  'ST1QUALITYINSPECTOR123 
+  "Quality Inspector")
+
+;; Add compliance officer as required signer
+(contract-call? .traceflow add-required-signer 
+  u1 
+  u3 
+  'ST1COMPLIANCEOFFICER456 
+  "Compliance Officer")
+```
+
+### Sign a Multi-Signature Stage
+```clarity
+;; Quality inspector signs the stage
+(contract-call? .traceflow sign-stage 
+  u1 
+  u3 
+  "Quality inspection passed. All parameters within acceptable range.")
+
+;; Compliance officer signs the stage
+(contract-call? .traceflow sign-stage 
+  u1 
+  u3 
+  "Compliance verified. All regulatory requirements met.")
+```
+
+### Verify Stage (After Multi-Sig Complete)
+```clarity
+;; Contract owner can verify once all required signatures are collected
+(contract-call? .traceflow verify-stage u1 u3)
+```
+
+### Register IoT Sensor
+```clarity
+(contract-call? .traceflow authorize-sensor "TEMP001" "temperature" "Warehouse A - Delhi")
 ```
 
 ### Record Sensor Reading
 ```clarity
-;; Record temperature: 25°C, humidity: 65%, location: "In Transit - Mumbai"
-(contract-call? .traceflow record-sensor-reading "TEMP001" u1 25 u65 "In Transit - Mumbai")
+;; Record temperature: 25°C, humidity: 65%, location coordinates
+(contract-call? .traceflow add-sensor-reading 
+  u1 
+  "TEMP001" 
+  2500 
+  u65 
+  2893000 
+  7717000 
+  "Normal conditions")
 ```
 
 ### Scan QR Code
@@ -124,30 +187,34 @@ clarinet check
 (contract-call? .traceflow authorize-handler 'ST1SUPPLIER123 "Cotton Supplier Co." "Raw Material Supplier")
 ```
 
-### Add Supply Chain Stage
-```clarity
-(contract-call? .traceflow add-supply-chain-stage u1 "Raw Material Sourcing" "Gujarat, India" "Organic cotton sourced from certified farms")
-```
-
 ### Query Functions
 ```clarity
 ;; Get product information
 (contract-call? .traceflow get-product u1)
 
+;; Get supply chain stage with multi-sig info
+(contract-call? .traceflow get-supply-chain-stage u1 u3)
+
+;; Get stage signature
+(contract-call? .traceflow get-stage-signature u1 u3 'ST1QUALITYINSPECTOR123)
+
+;; Check if required signer
+(contract-call? .traceflow get-required-signer u1 u3 'ST1QUALITYINSPECTOR123)
+
+;; Check if stage is finalized
+(contract-call? .traceflow is-stage-finalized u1 u3)
+
 ;; Get QR code information
 (contract-call? .traceflow get-qr-code-info 0x1234567890abcdef...)
 
 ;; Get sensor information
-(contract-call? .traceflow get-iot-sensor "TEMP001")
+(contract-call? .traceflow get-sensor-info "TEMP001")
 
 ;; Get sensor reading
-(contract-call? .traceflow get-sensor-reading u1)
+(contract-call? .traceflow get-sensor-reading u1 u1)
 
 ;; Get product by QR code
 (contract-call? .traceflow get-product-by-qr 0x1234567890abcdef...)
-
-;; Get sensor assignment
-(contract-call? .traceflow get-product-sensor-assignment u1 "TEMP001")
 ```
 
 ## 🏗️ Contract Architecture
@@ -158,29 +225,70 @@ clarinet check
 - **QR Scan History**: Complete audit trail of all QR code scans with scanner, timestamp, and location
 - **IoT Sensors**: Registry of IoT sensors with type, owner, location, and status
 - **Sensor Readings**: Historical record of all sensor data with environmental conditions
-- **Product Sensor Assignments**: Links between products and their monitoring sensors
-- **Supply Chain Stages**: Track each stage with handler, location, timestamp, and data
+- **Supply Chain Stages**: Track each stage with handler, location, timestamp, multi-sig requirements
+- **Stage Signatures**: Store all signatures for multi-signature stages with signer and timestamp
+- **Required Signers**: Define which principals must sign each multi-sig stage
 - **Authorized Handlers**: Manage authorized supply chain participants
 - **Product Stage Count**: Track number of stages per product
 
 ### Key Functions
+
+#### Product & QR Code Functions
 - `register-product`: Register new products with auto-generated QR codes
-- `register-iot-sensor`: Register IoT sensors for environmental monitoring
-- `assign-sensor-to-product`: Link sensors to specific products
-- `record-sensor-reading`: Record temperature, humidity, and location data
 - `scan-qr-code`: Scan QR codes and record scan activity with location
 - `verify-qr-code`: Verify QR code authenticity against product ID
 - `invalidate-qr-code`: Invalidate QR codes for security or recalls
-- `authorize-handler`: Authorize supply chain participants
-- `add-supply-chain-stage`: Add new supply chain stages
-- `verify-stage`: Verify stages for authenticity
 - `get-product`: Retrieve product information
 - `get-qr-code-info`: Get QR code details and scan statistics
 - `get-product-by-qr`: Retrieve product information using QR code
 - `get-qr-scan-history`: Get detailed scan history for QR codes
-- `get-iot-sensor`: Get IoT sensor information
+
+#### Multi-Signature Functions 🔐
+- `add-supply-chain-stage`: Add new supply chain stages (with optional multi-sig requirement)
+- `add-required-signer`: Define who must sign a multi-signature stage
+- `sign-stage`: Sign a multi-signature stage with verification data
+- `get-stage-signature`: Retrieve signature details for a specific signer
+- `get-required-signer`: Check if a principal is a required signer
+- `is-stage-finalized`: Check if a stage has collected all required signatures
+
+#### IoT Sensor Functions
+- `authorize-sensor`: Register IoT sensors for environmental monitoring
+- `add-sensor-reading`: Record temperature, humidity, and location data
+- `get-sensor-info`: Get IoT sensor information
 - `get-sensor-reading`: Get sensor reading data
-- `get-product-sensor-assignment`: Get sensor assignment details
+
+#### Handler & Verification Functions
+- `authorize-handler`: Authorize supply chain participants
+- `verify-stage`: Verify stages for authenticity (requires multi-sig completion)
+- `get-handler-info`: Get handler information
+- `get-stage-count`: Get number of stages for a product
+- `get-reading-count`: Get number of sensor readings for a product
+
+## 🔐 Multi-Signature Use Cases
+
+### Quality Control Checkpoint
+Require sign-off from multiple quality inspectors before a product moves to the next stage:
+- Quality Inspector A signs after visual inspection
+- Quality Inspector B signs after testing measurements
+- Stage finalizes automatically when both signatures collected
+
+### Customs Clearance
+International shipments requiring approval from multiple authorities:
+- Customs Officer verifies documentation
+- Safety Inspector confirms product compliance
+- Both signatures required before shipment proceeds
+
+### High-Value Product Transfer
+Expensive items requiring dual authorization:
+- Warehouse Manager signs for physical transfer
+- Finance Officer signs for inventory value transfer
+- Both parties must agree before transaction completes
+
+### Pharmaceutical Cold Chain
+Critical temperature-sensitive medications:
+- Temperature Monitor confirms acceptable conditions
+- Pharmacist verifies product integrity
+- Both signatures required for each transfer point
 
 ## 🌡️ IoT Integration Details
 
@@ -197,25 +305,20 @@ clarinet check
 - **Real-time Alerts**: Monitor conditions that could damage products during transport
 - **Historical Analytics**: Analyze environmental trends and optimize supply chain conditions
 
-### IoT Data Validation
-- Temperature readings must be within -50°C to 100°C range
-- Humidity readings must be within 0-100% range
-- Location data is validated for proper format and length
-- Only authorized sensor owners or product manufacturers can record readings
-- All sensor data is timestamped with blockchain block height
-
 ## 🔐 Security Features
 
 - **QR Code Security**: Cryptographically generated QR codes prevent counterfeiting
 - **Scan Auditing**: Complete audit trail of all QR code scanning activity
+- **Multi-Signature Consensus**: Distributed approval prevents single-party manipulation
+- **Signature Verification**: Blockchain-verified signatures ensure authenticity
 - **IoT Data Integrity**: Immutable storage of sensor readings prevents data tampering
 - **Sensor Authentication**: Only registered sensors can submit readings
-- **Access Control**: Only authorized handlers can add stages and record sensor data
+- **Access Control**: Only authorized handlers and required signers can add stages and signatures
 - **Owner Privileges**: Contract owner can verify stages, authorize handlers, and invalidate QR codes
 - **Input Validation**: Comprehensive input validation prevents invalid data
 - **Immutable Records**: Blockchain ensures data cannot be tampered with
 - **Anti-Counterfeiting**: QR code verification system prevents fake products
-- **Environmental Security**: Track environmental tampering or exposure incidents
+- **Consensus Enforcement**: Multi-sig stages cannot be verified until fully signed
 
 ## 🧪 Testing
 
@@ -228,8 +331,11 @@ The test suite covers:
 - Product registration with QR code generation
 - QR code scanning and verification
 - QR code invalidation and security controls
+- Multi-signature stage creation and signing
+- Required signer management
+- Signature validation and finalization
+- Consensus enforcement
 - IoT sensor registration and management
-- Sensor assignment to products
 - Sensor reading recording and validation
 - Environmental data integrity checks
 - Handler authorization
@@ -238,57 +344,38 @@ The test suite covers:
 - Data integrity checks
 - Anti-counterfeiting measures
 
-## 🔄 IoT Integration Workflow
+## 🔄 Multi-Signature Workflow
 
-1. **Sensor Setup**: Register IoT sensors with unique IDs and location information
-2. **Product Assignment**: Assign sensors to products for monitoring during their journey
-3. **Data Collection**: IoT sensors automatically record environmental conditions
-4. **Blockchain Storage**: All sensor data is stored immutably on the blockchain
-5. **Real-time Monitoring**: Track environmental conditions throughout the supply chain
-6. **Analytics & Alerts**: Monitor for conditions that could affect product quality
-7. **Compliance Reporting**: Generate reports for regulatory compliance
+1. **Stage Creation**: Handler creates a new supply chain stage with multi-sig requirement enabled
+2. **Signer Definition**: Stage creator adds required signers with their roles
+3. **Signature Collection**: Each required signer reviews and signs the stage
+4. **Automatic Finalization**: Stage automatically finalizes when signature threshold (2) is reached
+5. **Verification**: Contract owner can verify the finalized stage
+6. **Audit Trail**: Complete history of all signatures is preserved on-chain
 
 ## 📊 Use Cases
 
-### Cold Chain Management
-- Monitor temperature-sensitive pharmaceuticals and vaccines
-- Track frozen and refrigerated food products
-- Ensure compliance with temperature requirements during shipping
+### Pharmaceutical Supply Chain
+- Multi-sig for quality control: Pharmacist + Lab Technician
+- Temperature monitoring throughout cold chain
+- QR code verification at each pharmacy
+- Complete audit trail for regulatory compliance
 
-### Quality Assurance
-- Monitor humidity levels for moisture-sensitive products
-- Track environmental conditions that affect product degradation
-- Provide evidence of proper handling for insurance claims
+### Luxury Goods Authentication
+- Multi-sig for authenticity: Brand Representative + Independent Appraiser
+- QR codes prevent counterfeiting
+- Track location throughout supply chain
+- Verify authenticity at point of sale
 
-### Supply Chain Optimization
-- Identify inefficient routes or storage conditions
-- Optimize packaging and transportation methods
-- Reduce product loss due to environmental damage
+### Food Safety & Traceability
+- Multi-sig for safety inspections: Health Inspector + Quality Manager
+- Temperature and humidity monitoring during transport
+- Track farm-to-table journey
+- Rapid recall capability with QR code invalidation
 
-### Regulatory Compliance
-- Provide immutable records for regulatory audits
-- Track compliance with environmental storage requirements
-- Generate automated compliance reports
+### Aerospace Parts Manufacturing
+- Multi-sig for critical inspections: Engineer + Safety Officer
+- Environmental monitoring during production
+- Complete documentation for each component
+- Regulatory compliance tracking
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Stacks Foundation for the blockchain infrastructure
-- Clarity language for secure smart contract development
-- IoT device manufacturers for sensor integration support
-- Manufacturing industry partners for requirements and feedback
-
----
-
-**Built with ❤️ for Supply Chain Transparency and IoT Integration**
