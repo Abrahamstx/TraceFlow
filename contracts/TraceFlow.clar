@@ -1,4 +1,4 @@
-;; TraceFlow - Supply Chain Transparency Smart Contract with IoT Sensor Integration
+;; TraceFlow - Supply Chain Transparency Smart Contract with IoT Sensor Integration and Multi-Signature Verification
 ;; A decentralized system for tracking product authenticity and supply chain provenance
 
 ;; Error codes
@@ -12,9 +12,16 @@
 (define-constant ERR-INVALID-SENSOR-DATA (err u107))
 (define-constant ERR-QR-CODE-INVALID (err u108))
 (define-constant ERR-QR-CODE-EXPIRED (err u109))
+(define-constant ERR-ALREADY-SIGNED (err u110))
+(define-constant ERR-INSUFFICIENT-SIGNATURES (err u111))
+(define-constant ERR-NOT-REQUIRED-SIGNER (err u112))
+(define-constant ERR-STAGE-NOT-PENDING (err u113))
 
 ;; Contract owner
 (define-constant CONTRACT-OWNER tx-sender)
+
+;; Multi-signature constants
+(define-constant REQUIRED-SIGNATURES u2)
 
 ;; Data structures
 (define-map products
@@ -59,7 +66,26 @@
     location: (string-ascii 100),
     timestamp: uint,
     stage-data: (string-ascii 200),
-    verified: bool
+    verified: bool,
+    requires-multisig: bool,
+    signature-count: uint,
+    is-finalized: bool
+  }
+)
+
+(define-map stage-signatures
+  { product-id: uint, stage-id: uint, signer: principal }
+  {
+    signed-at: uint,
+    signature-data: (string-ascii 200)
+  }
+)
+
+(define-map required-signers
+  { product-id: uint, stage-id: uint, signer: principal }
+  {
+    is-required: bool,
+    role: (string-ascii 50)
   }
 )
 
@@ -326,12 +352,13 @@
   )
 )
 
-;; Add a supply chain stage
+;; Add a supply chain stage (with optional multi-signature requirement)
 (define-public (add-supply-chain-stage 
   (product-id uint) 
   (stage-name (string-ascii 50)) 
   (location (string-ascii 100)) 
-  (stage-data (string-ascii 200)))
+  (stage-data (string-ascii 200))
+  (requires-multisig bool))
   (let 
     (
       (product (unwrap! (map-get? products { product-id: product-id }) ERR-NOT-FOUND))
@@ -365,7 +392,10 @@
         location: location,
         timestamp: stacks-block-height,
         stage-data: stage-data,
-        verified: false
+        verified: false,
+        requires-multisig: requires-multisig,
+        signature-count: u0,
+        is-finalized: (not requires-multisig)
       }
     )
     
@@ -378,6 +408,89 @@
   )
 )
 
+;; Add required signer for multi-signature stage
+(define-public (add-required-signer 
+  (product-id uint) 
+  (stage-id uint) 
+  (signer principal)
+  (role (string-ascii 50)))
+  (let 
+    (
+      (stage (unwrap! (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id }) ERR-NOT-FOUND))
+      (product (unwrap! (map-get? products { product-id: product-id }) ERR-NOT-FOUND))
+    )
+    
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> stage-id u0) ERR-INVALID-INPUT)
+    (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (asserts! (> (len role) u0) ERR-INVALID-INPUT)
+    (asserts! (get requires-multisig stage) ERR-INVALID-STAGE)
+    (asserts! (not (get is-finalized stage)) ERR-INVALID-STAGE)
+    (asserts! (is-eq tx-sender (get handler stage)) ERR-UNAUTHORIZED)
+    (asserts! (is-none (map-get? required-signers { product-id: product-id, stage-id: stage-id, signer: signer })) ERR-ALREADY-EXISTS)
+    
+    (map-set required-signers
+      { product-id: product-id, stage-id: stage-id, signer: signer }
+      {
+        is-required: true,
+        role: role
+      }
+    )
+    
+    (ok true)
+  )
+)
+
+;; Sign a multi-signature stage
+(define-public (sign-stage 
+  (product-id uint) 
+  (stage-id uint)
+  (signature-data (string-ascii 200)))
+  (let 
+    (
+      (stage (unwrap! (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id }) ERR-NOT-FOUND))
+      (required-signer (map-get? required-signers { product-id: product-id, stage-id: stage-id, signer: tx-sender }))
+      (existing-signature (map-get? stage-signatures { product-id: product-id, stage-id: stage-id, signer: tx-sender }))
+      (new-signature-count (+ (get signature-count stage) u1))
+    )
+    
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> stage-id u0) ERR-INVALID-INPUT)
+    (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (asserts! (<= (len signature-data) u200) ERR-INVALID-INPUT)
+    (asserts! (get requires-multisig stage) ERR-INVALID-STAGE)
+    (asserts! (not (get is-finalized stage)) ERR-STAGE-NOT-PENDING)
+    (asserts! (is-some required-signer) ERR-NOT-REQUIRED-SIGNER)
+    (asserts! (get is-required (unwrap-panic required-signer)) ERR-NOT-REQUIRED-SIGNER)
+    (asserts! (is-none existing-signature) ERR-ALREADY-SIGNED)
+    
+    (map-set stage-signatures
+      { product-id: product-id, stage-id: stage-id, signer: tx-sender }
+      {
+        signed-at: stacks-block-height,
+        signature-data: signature-data
+      }
+    )
+    
+    (map-set supply-chain-stages
+      { product-id: product-id, stage-id: stage-id }
+      (merge stage 
+        { 
+          signature-count: new-signature-count,
+          is-finalized: (>= new-signature-count REQUIRED-SIGNATURES)
+        }
+      )
+    )
+    
+    (ok { 
+      signature-count: new-signature-count, 
+      is-finalized: (>= new-signature-count REQUIRED-SIGNATURES) 
+    })
+  )
+)
+
 ;; Verify a supply chain stage
 (define-public (verify-stage (product-id uint) (stage-id uint))
   (let ((stage (unwrap! (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id }) ERR-NOT-FOUND)))
@@ -386,6 +499,13 @@
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (asserts! (> stage-id u0) ERR-INVALID-INPUT)
     (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (asserts! 
+      (or 
+        (not (get requires-multisig stage))
+        (get is-finalized stage)
+      ) 
+      ERR-INSUFFICIENT-SIGNATURES
+    )
     
     (map-set supply-chain-stages
       { product-id: product-id, stage-id: stage-id }
@@ -486,6 +606,28 @@
   )
 )
 
+;; Get stage signature
+(define-read-only (get-stage-signature (product-id uint) (stage-id uint) (signer principal))
+  (begin
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> stage-id u0) ERR-INVALID-INPUT)
+    (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (ok (map-get? stage-signatures { product-id: product-id, stage-id: stage-id, signer: signer }))
+  )
+)
+
+;; Get required signer info
+(define-read-only (get-required-signer (product-id uint) (stage-id uint) (signer principal))
+  (begin
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> stage-id u0) ERR-INVALID-INPUT)
+    (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (ok (map-get? required-signers { product-id: product-id, stage-id: stage-id, signer: signer }))
+  )
+)
+
 ;; Get handler information
 (define-read-only (get-handler-info (handler principal))
   (begin
@@ -524,6 +666,19 @@
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (ok (match (map-get? products { product-id: product-id })
       product (get is-active product)
+      false))
+  )
+)
+
+;; Check if stage is finalized (multi-sig complete or not required)
+(define-read-only (is-stage-finalized (product-id uint) (stage-id uint))
+  (begin
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> stage-id u0) ERR-INVALID-INPUT)
+    (asserts! (< stage-id u1000) ERR-INVALID-INPUT)
+    (ok (match (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id })
+      stage (get is-finalized stage)
       false))
   )
 )
