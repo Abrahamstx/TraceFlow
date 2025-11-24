@@ -16,12 +16,17 @@
 (define-constant ERR-INSUFFICIENT-SIGNATURES (err u111))
 (define-constant ERR-NOT-REQUIRED-SIGNER (err u112))
 (define-constant ERR-STAGE-NOT-PENDING (err u113))
+(define-constant ERR-CONTRACT-PAUSED (err u114))
 
 ;; Contract owner
 (define-constant CONTRACT-OWNER tx-sender)
 
 ;; Multi-signature constants
 (define-constant REQUIRED-SIGNATURES u2)
+
+;; Data variables
+(define-data-var next-product-id uint u1)
+(define-data-var contract-paused bool false)
 
 ;; Data structures
 (define-map products
@@ -139,9 +144,6 @@
   { count: uint }
 )
 
-;; Data variables
-(define-data-var next-product-id uint u1)
-
 ;; Helper functions
 (define-private (generate-qr-code-hash (product-id uint) (batch-number (string-ascii 50)))
   (keccak256 (concat 
@@ -155,10 +157,30 @@
 
 ;; Public functions
 
+;; Emergency pause functionality
+(define-public (pause-contract)
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+    (asserts! (not (var-get contract-paused)) ERR-INVALID-INPUT)
+    (var-set contract-paused true)
+    (ok true)
+  )
+)
+
+(define-public (unpause-contract)
+  (begin
+    (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
+    (asserts! (var-get contract-paused) ERR-INVALID-INPUT)
+    (var-set contract-paused false)
+    (ok true)
+  )
+)
+
 ;; Register a new product with QR code generation
 (define-public (register-product (product-name (string-ascii 100)) (batch-number (string-ascii 50)))
   (let ((product-id (var-get next-product-id))
         (qr-code-hash (generate-qr-code-hash (var-get next-product-id) batch-number)))
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (> (len product-name) u0) ERR-INVALID-INPUT)
     (asserts! (> (len batch-number) u0) ERR-INVALID-INPUT)
     (asserts! (is-none (map-get? products { product-id: product-id })) ERR-ALREADY-EXISTS)
@@ -210,6 +232,7 @@
       (current-scan-count (default-to { count: u0 } (map-get? qr-scan-count { qr-code-hash: qr-code-hash })))
       (new-scan-id (+ (get count current-scan-count) u1))
     )
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (is-eq (len qr-code-hash) u32) ERR-INVALID-INPUT)
     
     (asserts! (get is-valid qr-info) ERR-QR-CODE-INVALID)
@@ -253,6 +276,7 @@
   (sensor-type (string-ascii 30)) 
   (location (string-ascii 100)))
   (begin
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
     (asserts! (> (len sensor-id) u0) ERR-INVALID-INPUT)
     (asserts! (> (len sensor-type) u0) ERR-INVALID-INPUT)
@@ -291,6 +315,7 @@
       (alert-triggered (or (< temperature -1000) (> temperature 5000) (> humidity u100)))
     )
     
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (> product-id u0) ERR-INVALID-INPUT)
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (asserts! (get is-active product) ERR-INVALID-STAGE)
@@ -336,6 +361,7 @@
 ;; Authorize a supply chain handler
 (define-public (authorize-handler (handler principal) (company-name (string-ascii 100)) (role (string-ascii 50)))
   (begin
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (is-eq tx-sender CONTRACT-OWNER) ERR-OWNER-ONLY)
     (asserts! (not (is-eq handler tx-sender)) ERR-INVALID-INPUT)
     (asserts! (not (is-eq handler CONTRACT-OWNER)) ERR-INVALID-INPUT)
@@ -371,6 +397,7 @@
       (new-stage-id (+ (get count current-count) u1))
     )
     
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (> product-id u0) ERR-INVALID-INPUT)
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (asserts! (get is-active product) ERR-INVALID-STAGE)
@@ -423,7 +450,7 @@
       (stage (unwrap! (map-get? supply-chain-stages { product-id: product-id, stage-id: stage-id }) ERR-NOT-FOUND))
       (product (unwrap! (map-get? products { product-id: product-id }) ERR-NOT-FOUND))
     )
-    ;; Additional validations for signer
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (not (is-eq signer CONTRACT-OWNER)) ERR-INVALID-INPUT)
     (asserts! (not (is-eq signer tx-sender)) ERR-INVALID-INPUT)
     
@@ -462,6 +489,7 @@
       (new-signature-count (+ (get signature-count stage) u1))
     )
     
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
     (asserts! (> product-id u0) ERR-INVALID-INPUT)
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (asserts! (> stage-id u0) ERR-INVALID-INPUT)
@@ -536,6 +564,11 @@
 )
 
 ;; Read-only functions
+
+;; Get contract pause status
+(define-read-only (is-contract-paused)
+  (ok (var-get contract-paused))
+)
 
 ;; Get product information
 (define-read-only (get-product (product-id uint))

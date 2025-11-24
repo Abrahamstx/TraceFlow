@@ -15,6 +15,7 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **Environmental Monitoring**: Track temperature and humidity conditions throughout the supply chain
 - **Multi-Signature Verification**: Require multiple authorized parties to approve critical supply chain stages
 - **Distributed Trust**: Enhance security by requiring consensus from multiple stakeholders
+- **Emergency Pause**: Contract owner can pause all operations during security incidents or maintenance
 - **Stage Tracking**: Each supply chain stage is recorded with location, handler, and timestamp
 - **Handler Authorization**: Only authorized entities can add supply chain stages
 - **Verification System**: Contract owner can verify stages and invalidate QR codes for security
@@ -32,6 +33,7 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **Stage Verification**: Verify supply chain stages for authenticity
 - **Scan Analytics**: Track QR code scan frequency and locations
 - **Security Controls**: Invalidate QR codes for recalls or security incidents
+- **Emergency Pause**: Temporarily halt all contract operations for maintenance or security
 - **Transparency**: Query product history, QR scan data, and current status
 
 ### Multi-Signature Features 🔐
@@ -53,6 +55,13 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **Alert System**: Automatic alerts for out-of-range environmental conditions
 - **Multi-sensor Support**: Support for various sensor types (temperature, humidity, location, etc.)
 - **Access Control**: Only authorized sensors can submit readings
+
+### Emergency Controls 🚨
+- **Contract Pause**: Owner can immediately pause all state-changing operations
+- **Maintenance Mode**: Safely perform upgrades or investigate security issues
+- **Read-Only Access**: All query functions remain available during pause
+- **Quick Recovery**: Single transaction to resume normal operations
+- **Audit Trail**: Pause/unpause events recorded on-chain
 
 ### Smart Contract Features
 - **Auto-Generated QR Codes**: Unique QR codes generated using cryptographic hashing for each product
@@ -98,6 +107,18 @@ clarinet check
 ```
 
 ## 📖 Usage
+
+### Emergency Pause Controls
+```clarity
+;; Pause contract during security incident or maintenance
+(contract-call? .traceflow pause-contract)
+
+;; Resume normal operations
+(contract-call? .traceflow unpause-contract)
+
+;; Check pause status
+(contract-call? .traceflow is-contract-paused)
+```
 
 ### Register a Product (with QR Code)
 ```clarity
@@ -189,6 +210,9 @@ clarinet check
 
 ### Query Functions
 ```clarity
+;; Check if contract is paused
+(contract-call? .traceflow is-contract-paused)
+
 ;; Get product information
 (contract-call? .traceflow get-product u1)
 
@@ -230,8 +254,14 @@ clarinet check
 - **Required Signers**: Define which principals must sign each multi-sig stage
 - **Authorized Handlers**: Manage authorized supply chain participants
 - **Product Stage Count**: Track number of stages per product
+- **Contract Pause State**: Boolean flag for emergency pause functionality
 
 ### Key Functions
+
+#### Emergency Control Functions 🚨
+- `pause-contract`: Immediately halt all state-changing operations
+- `unpause-contract`: Resume normal contract operations
+- `is-contract-paused`: Query current pause status
 
 #### Product & QR Code Functions
 - `register-product`: Register new products with auto-generated QR codes
@@ -263,6 +293,32 @@ clarinet check
 - `get-handler-info`: Get handler information
 - `get-stage-count`: Get number of stages for a product
 - `get-reading-count`: Get number of sensor readings for a product
+
+## 🚨 Emergency Pause Use Cases
+
+### Security Incident Response
+When a vulnerability is discovered or suspicious activity is detected:
+- Immediately pause all operations to prevent exploitation
+- Investigate the issue safely while preserving data integrity
+- Resume operations once the issue is resolved
+
+### Smart Contract Upgrades
+During planned maintenance or upgrades:
+- Pause contract to prevent state changes during migration
+- Complete upgrade process safely
+- Unpause to resume with new features
+
+### Regulatory Compliance
+When regulatory requirements necessitate temporary suspension:
+- Pause operations to comply with legal requirements
+- Maintain read-only access for auditing
+- Resume once compliance issues are addressed
+
+### Network Congestion
+During extreme network conditions:
+- Temporarily pause to prevent failed transactions
+- Wait for network stability
+- Resume normal operations when conditions improve
 
 ## 🔐 Multi-Signature Use Cases
 
@@ -307,6 +363,7 @@ Critical temperature-sensitive medications:
 
 ## 🔐 Security Features
 
+- **Emergency Pause**: Halt all operations immediately during security incidents
 - **QR Code Security**: Cryptographically generated QR codes prevent counterfeiting
 - **Scan Auditing**: Complete audit trail of all QR code scanning activity
 - **Multi-Signature Consensus**: Distributed approval prevents single-party manipulation
@@ -328,6 +385,8 @@ clarinet test
 ```
 
 The test suite covers:
+- Emergency pause and unpause functionality
+- Pause enforcement on state-changing operations
 - Product registration with QR code generation
 - QR code scanning and verification
 - QR code invalidation and security controls
@@ -359,23 +418,44 @@ The test suite covers:
 - Multi-sig for quality control: Pharmacist + Lab Technician
 - Temperature monitoring throughout cold chain
 - QR code verification at each pharmacy
+- Emergency pause during recall situations
 - Complete audit trail for regulatory compliance
 
 ### Luxury Goods Authentication
 - Multi-sig for authenticity: Brand Representative + Independent Appraiser
 - QR codes prevent counterfeiting
 - Track location throughout supply chain
+- Pause during security investigations
 - Verify authenticity at point of sale
 
 ### Food Safety & Traceability
 - Multi-sig for safety inspections: Health Inspector + Quality Manager
 - Temperature and humidity monitoring during transport
 - Track farm-to-table journey
+- Emergency pause during contamination events
 - Rapid recall capability with QR code invalidation
 
 ### Aerospace Parts Manufacturing
 - Multi-sig for critical inspections: Engineer + Safety Officer
 - Environmental monitoring during production
 - Complete documentation for each component
+- Pause during quality incidents
 - Regulatory compliance tracking
 
+## 📝 Error Codes
+
+- `ERR-OWNER-ONLY (u100)`: Only contract owner can perform this action
+- `ERR-NOT-FOUND (u101)`: Requested resource not found
+- `ERR-ALREADY-EXISTS (u102)`: Resource already exists
+- `ERR-UNAUTHORIZED (u103)`: Caller not authorized for this action
+- `ERR-INVALID-STAGE (u104)`: Stage operation invalid
+- `ERR-INVALID-INPUT (u105)`: Input parameters invalid
+- `ERR-SENSOR-NOT-AUTHORIZED (u106)`: Sensor not authorized
+- `ERR-INVALID-SENSOR-DATA (u107)`: Sensor data out of range
+- `ERR-QR-CODE-INVALID (u108)`: QR code invalidated
+- `ERR-QR-CODE-EXPIRED (u109)`: QR code expired
+- `ERR-ALREADY-SIGNED (u110)`: Signer already signed this stage
+- `ERR-INSUFFICIENT-SIGNATURES (u111)`: Not enough signatures collected
+- `ERR-NOT-REQUIRED-SIGNER (u112)`: Caller not a required signer
+- `ERR-STAGE-NOT-PENDING (u113)`: Stage already finalized
+- `ERR-CONTRACT-PAUSED (u114)`: Contract operations paused
