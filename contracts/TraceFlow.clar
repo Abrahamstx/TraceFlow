@@ -17,6 +17,8 @@
 (define-constant ERR-NOT-REQUIRED-SIGNER (err u112))
 (define-constant ERR-STAGE-NOT-PENDING (err u113))
 (define-constant ERR-CONTRACT-PAUSED (err u114))
+(define-constant ERR-ALREADY-RECALLED (err u115))
+(define-constant ERR-NOT-MANUFACTURER (err u116))
 
 ;; Contract owner
 (define-constant CONTRACT-OWNER tx-sender)
@@ -27,6 +29,7 @@
 ;; Data variables
 (define-data-var next-product-id uint u1)
 (define-data-var contract-paused bool false)
+(define-data-var total-recalls uint u0)
 
 ;; Data structures
 (define-map products
@@ -38,7 +41,31 @@
     manufacture-date: uint,
     created-at: uint,
     is-active: bool,
-    qr-code-hash: (buff 32)
+    qr-code-hash: (buff 32),
+    is-recalled: bool,
+    recall-id: uint
+  }
+)
+
+(define-map product-recalls
+  { recall-id: uint }
+  {
+    product-id: uint,
+    manufacturer: principal,
+    reason: (string-ascii 200),
+    severity: (string-ascii 20),
+    recalled-at: uint,
+    affected-batches: (string-ascii 100),
+    notification-sent: bool
+  }
+)
+
+(define-map batch-recalls
+  { batch-number: (string-ascii 50) }
+  {
+    is-recalled: bool,
+    recall-id: uint,
+    recall-count: uint
   }
 )
 
@@ -194,7 +221,9 @@
         manufacture-date: stacks-block-height,
         created-at: stacks-block-height,
         is-active: true,
-        qr-code-hash: qr-code-hash
+        qr-code-hash: qr-code-hash,
+        is-recalled: false,
+        recall-id: u0
       }
     )
     
@@ -221,6 +250,77 @@
     
     (var-set next-product-id (+ product-id u1))
     (ok { product-id: product-id, qr-code-hash: qr-code-hash })
+  )
+)
+
+;; Initiate product recall
+(define-public (recall-product 
+  (product-id uint) 
+  (reason (string-ascii 200)) 
+  (severity (string-ascii 20))
+  (affected-batches (string-ascii 100)))
+  (let 
+    (
+      (product (unwrap! (map-get? products { product-id: product-id }) ERR-NOT-FOUND))
+      (new-recall-id (+ (var-get total-recalls) u1))
+    )
+    (asserts! (not (var-get contract-paused)) ERR-CONTRACT-PAUSED)
+    (asserts! (> product-id u0) ERR-INVALID-INPUT)
+    (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
+    (asserts! (> (len reason) u0) ERR-INVALID-INPUT)
+    (asserts! (<= (len reason) u200) ERR-INVALID-INPUT)
+    (asserts! (> (len severity) u0) ERR-INVALID-INPUT)
+    (asserts! (<= (len severity) u20) ERR-INVALID-INPUT)
+    (asserts! (> (len affected-batches) u0) ERR-INVALID-INPUT)
+    (asserts! (<= (len affected-batches) u100) ERR-INVALID-INPUT)
+    (asserts! (is-eq tx-sender (get manufacturer product)) ERR-NOT-MANUFACTURER)
+    (asserts! (not (get is-recalled product)) ERR-ALREADY-RECALLED)
+    
+    (map-set product-recalls
+      { recall-id: new-recall-id }
+      {
+        product-id: product-id,
+        manufacturer: tx-sender,
+        reason: reason,
+        severity: severity,
+        recalled-at: stacks-block-height,
+        affected-batches: affected-batches,
+        notification-sent: true
+      }
+    )
+    
+    (map-set products
+      { product-id: product-id }
+      (merge product 
+        { 
+          is-recalled: true,
+          recall-id: new-recall-id,
+          is-active: false
+        }
+      )
+    )
+    
+    (let ((batch-recall-info (default-to { is-recalled: false, recall-id: u0, recall-count: u0 } 
+                                          (map-get? batch-recalls { batch-number: (get batch-number product) }))))
+      (map-set batch-recalls
+        { batch-number: (get batch-number product) }
+        {
+          is-recalled: true,
+          recall-id: new-recall-id,
+          recall-count: (+ (get recall-count batch-recall-info) u1)
+        }
+      )
+    )
+    
+    (map-set qr-code-registry
+      { qr-code-hash: (get qr-code-hash product) }
+      (merge (unwrap-panic (map-get? qr-code-registry { qr-code-hash: (get qr-code-hash product) }))
+        { is-valid: false }
+      )
+    )
+    
+    (var-set total-recalls new-recall-id)
+    (ok new-recall-id)
   )
 )
 
@@ -577,6 +677,31 @@
     (asserts! (< product-id u1000000) ERR-INVALID-INPUT)
     (ok (map-get? products { product-id: product-id }))
   )
+)
+
+;; Get recall information
+(define-read-only (get-recall-info (recall-id uint))
+  (begin
+    (asserts! (> recall-id u0) ERR-INVALID-INPUT)
+    (asserts! (<= recall-id (var-get total-recalls)) ERR-INVALID-INPUT)
+    (ok (map-get? product-recalls { recall-id: recall-id }))
+  )
+)
+
+;; Check if batch is recalled
+(define-read-only (is-batch-recalled (batch-number (string-ascii 50)))
+  (begin
+    (asserts! (> (len batch-number) u0) ERR-INVALID-INPUT)
+    (asserts! (<= (len batch-number) u50) ERR-INVALID-INPUT)
+    (ok (match (map-get? batch-recalls { batch-number: batch-number })
+      batch-info (get is-recalled batch-info)
+      false))
+  )
+)
+
+;; Get total recalls
+(define-read-only (get-total-recalls)
+  (ok (var-get total-recalls))
 )
 
 ;; Get product by QR code

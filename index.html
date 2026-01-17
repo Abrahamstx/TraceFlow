@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraceFlow - Supply Chain Transparency</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            width: 30px;
+            height: 30px;
+            display: inline-block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        .alert.warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .product-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .product-item {
+            padding: 15px;
+            border: 2px solid #f0f0f0;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            transition: border-color 0.3s;
+        }
+
+        .product-item:hover {
+            border-color: #667eea;
+        }
+
+        .product-item h3 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .product-item p {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge.recalled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge.critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .qr-display {
+            width: 200px;
+            height: 200px;
+            background: white;
+            border: 3px dashed #667eea;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px auto;
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: none;
+            border: none;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            width: auto;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .info-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .info-box p {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 30px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -24px;
+            top: 5px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            border: 3px solid white;
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .timeline-content {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .timeline-content h4 {
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .timeline-content p {
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 TraceFlow</h1>
+            <p class="tagline">Blockchain-Powered Supply Chain Transparency with IoT Integration & Product Recalls</p>
+        </header>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="totalProducts">0</div>
+                <div class="stat-label">Total Products</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalScans">0</div>
+                <div class="stat-label">QR Code Scans</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalRecalls">0</div>
+                <div class="stat-label">Active Recalls</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalSensors">0</div>
+                <div class="stat-label">IoT Sensors</div>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="panel">
+                <h2>📦 Product Management</h2>
+                
+                <div class="tabs">
+                    <button class="tab active" onclick="switchTab(event, 'register')">Register Product</button>
+                    <button class="tab" onclick="switchTab(event, 'recall')">Recall Product</button>
+                    <button class="tab" onclick="switchTab(event, 'verify')">Verify QR</button>
+                </div>
+
+                <div id="register" class="tab-content active">
+                    <div class="alert success" id="registerSuccess"></div>
+                    <div class="alert error" id="registerError"></div>
+                    
+                    <form onsubmit="registerProduct(event)">
+                        <div class="form-group">
+                            <label>Product Name</label>
+                            <input type="text" id="productName" placeholder="e.g., Organic Cotton T-Shirt" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Batch Number</label>
+                            <input type="text" id="batchNumber" placeholder="e.g., BATCH-2024-001" required>
+                        </div>
+                        <button type="submit">Register Product & Generate QR</button>
+                    </form>
+
+                    <div class="qr-display" id="qrDisplay">
+                        QR Code will appear here
+                    </div>
+                </div>
+
+                <div id="recall" class="tab-content">
+                    <div class="info-box">
+                        <p>⚠️ Initiating a recall will automatically invalidate QR codes and deactivate the product from the supply chain.</p>
+                    </div>
+
+                    <div class="alert success" id="recallSuccess"></div>
+                    <div class="alert error" id="recallError"></div>
+
+                    <form onsubmit="recallProduct(event)">
+                        <div class="form-group">
+                            <label>Product ID</label>
+                            <input type="number" id="recallProductId" placeholder="e.g., 1" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Recall Reason</label>
+                            <textarea id="recallReason" placeholder="Describe the reason for recall..." required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Severity Level</label>
+                            <select id="recallSeverity" required>
+                                <option value="">Select severity...</option>
+                                <option value="Critical">Critical</option>
+                                <option value="High">High</option>
+                                <option value="Medium">Medium</option>
+                                <option value="Low">Low</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Affected Batches</label>
+                            <input type="text" id="affectedBatches" placeholder="e.g., BATCH-2024-001, BATCH-2024-002" required>
+                        </div>
+                        <button type="submit">Initiate Recall</button>
+                    </form>
+                </div>
+
+                <div id="verify" class="tab-content">
+                    <div class="alert success" id="verifySuccess"></div>
+                    <div class="alert error" id="verifyError"></div>
+                    <div class="alert warning" id="verifyWarning"></div>
+
+                    <form onsubmit="verifyQR(event)">
+                        <div class="form-group">
+                            <label>QR Code Hash</label>
+                            <input type="text" id="qrHash" placeholder="Enter QR code hash..." required>
+                        </div>
+                        <div class="form-group">
+                            <label>Scan Location</label>
+                            <input type="text" id="scanLocation" placeholder="e.g., New York Retail Store" required>
+                        </div>
+                        <button type="submit">Scan & Verify</button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🌡️ IoT Sensor Monitoring</h2>
+                
+                <div class="alert success" id="sensorSuccess"></div>
+                <div class="alert error" id="sensorError"></div>
+
+                <form onsubmit="addSensorReading(event)">
+                    <div class="form-group">
+                        <label>Product ID</label>
+                        <input type="number" id="sensorProductId" placeholder="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Sensor ID</label>
+                        <input type="text" id="sensorId" placeholder="TEMP001" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Temperature (°C × 100)</label>
+                        <input type="number" id="temperature" placeholder="2500 (25°C)" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Humidity (%)</label>
+                        <input type="number" id="humidity" placeholder="65" min="0" max="100" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Additional Data</label>
+                        <textarea id="sensorData" placeholder="Any additional sensor information..."></textarea>
+                    </div>
+                    <button type="submit">Submit Sensor Reading</button>
+                </form>
+
+                <div class="timeline" id="sensorTimeline" style="margin-top: 30px;">
+                    <h3 style="margin-bottom: 20px; color: #333;">Recent Readings</h3>
+                    <!-- Timeline items will be added here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="panel">
+            <h2>📋 Product Registry</h2>
+            <div class="product-list" id="productList">
+                <div class="product-item">
+                    <h3>Sample Product #1</h3>
+                    <p><strong>Batch:</strong> BATCH-2024-001</p>
+                    <p><strong>Manufacturer:</strong> ST1MANUFACTURER...</p>
+                    <p><strong>QR Scans:</strong> 15</p>
+                    <span class="badge active">Active</span>
+                </div>
+                <div class="product-item">
+                    <h3>Sample Product #2</h3>
+                    <p><strong>Batch:</strong> BATCH-2024-002</p>
+                    <p><strong>Manufacturer:</strong> ST1MANUFACTURER...</p>
+                    <p><strong>QR Scans:</strong> 8</p>
+                    <span class="badge recalled">Recalled</span>
+                    <span class="badge critical">Critical</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Simulated data
+        let products = [];
+        let sensorReadings = [];
+        let recalls = 0;
+
+        // Initialize stats
+        function updateStats() {
+            document.getElementById('totalProducts').textContent = products.length;
+            document.getElementById('totalScans').textContent = Math.floor(Math.random() * 100);
+            document.getElementById('totalRecalls').textContent = recalls;
+            document.getElementById('totalSensors').textContent = Math.floor(Math.random() * 10);
+        }
+
+        // Tab switching
+        function switchTab(event, tabName) {
+            const tabs = document.querySelectorAll('.tab');
+            const contents = document.querySelectorAll('.tab-content');
+            
+            tabs.forEach(tab => tab.classList.remove('active'));
+            contents.forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Register product
+        function registerProduct(event) {
+            event.preventDefault();
+            
+            const name = document.getElementById('productName').value;
+            const batch = document.getElementById('batchNumber').value;
+            
+            // Simulate product registration
+            const productId = products.length + 1;
+            const qrHash = generateQRHash(productId, batch);
+            
+            products.push({
+                id: productId,
+                name: name,
+                batch: batch,
+                qrHash: qrHash,
+                isRecalled: false,
+                scans: 0
+            });
+            
+            // Show success message
+            const successAlert = document.getElementById('registerSuccess');
+            successAlert.textContent = `✅ Product registered successfully! Product ID: ${productId}`;
+            successAlert.style.display = 'block';
+            
+            // Display QR code
+            const qrDisplay = document.getElementById('qrDisplay');
+            qrDisplay.innerHTML = `<div style="text-align: center;">
+                <div style="font-size: 3em; margin-bottom: 10px;">📱</div>
+                <div style="font-size: 0.8em; color: #667eea; word-break: break-all;">${qrHash}</div>
+            </div>`;
+            
+            // Update stats and product list
+            updateStats();
+            updateProductList();
+            
+            // Reset form
+            event.target.reset();
+            
+            // Hide alert after 5 seconds
+            setTimeout(() => {
+                successAlert.style.display = 'none';
+            }, 5000);
+        }
+
+        // Recall product
+        function recallProduct(event) {
+            event.preventDefault();
+            
+            const productId = document.getElementById('recallProductId').value;
+            const reason = document.getElementById('recallReason').value;
+            const severity = document.getElementById('recallSeverity').value;
+            const batches = document.getElementById('affectedBatches').value;
+            
+            // Find product
+            const product = products.find(p => p.id == productId);
+            
+            if (!product) {
+                const errorAlert = document.getElementById('recallError');
+                errorAlert.textContent = '❌ Product not found!';
+                errorAlert.style.display = 'block';
+                setTimeout(() => { errorAlert.style.display = 'none'; }, 5000);
+                return;
+            }
+            
+            if (product.isRecalled) {
+                const errorAlert = document.getElementById('recallError');
+                errorAlert.textContent = '❌ Product already recalled!';
+                errorAlert.style.display = 'block';
+                setTimeout(() => { errorAlert.style.display = 'none'; }, 5000);
+                return;
+            }
+            
+            // Mark as recalled
+            product.isRecalled = true;
+            product.recallReason = reason;
+            product.recallSeverity = severity;
+            recalls++;
+            
+            // Show success message
+            const successAlert = document.getElementById('recallSuccess');
+            successAlert.textContent = `✅ Product recalled successfully! Recall ID: ${recalls}. QR codes invalidated.`;
+            successAlert.style.display = 'block';
+            
+            // Update stats and product list
+            updateStats();
+            updateProductList();
+            
+            // Reset form
+            event.target.reset();
+            
+            setTimeout(() => { successAlert.style.display = 'none'; }, 5000);
+        }
+
+        // Verify QR code
+        function verifyQR(event) {
+            event.preventDefault();
+            
+            const qrHash = document.getElementById('qrHash').value;
+            const location = document.getElementById('scanLocation').value;
+            
+            // Find product by QR hash
+            const product = products.find(p => p.qrHash === qrHash);
+            
+            if (!product) {
+                const errorAlert = document.getElementById('verifyError');
+                errorAlert.textContent = '❌ Invalid QR code! Product not found.';
+                errorAlert.style.display = 'block';
+                setTimeout(() => { errorAlert.style.display = 'none'; }, 5000);
+                return;
+            }
+            
+            if (product.isRecalled) {
+                const warningAlert = document.getElementById('verifyWarning');
+                warningAlert.textContent = `⚠️ WARNING: This product has been recalled! Reason: ${product.recallReason}. Do not use!`;
+                warningAlert.style.display = 'block';
+                setTimeout(() => { warningAlert.style.display = 'none'; }, 8000);
+                return;
+            }
+            
+            // Increment scan count
+            product.scans++;
+            
+            // Show success
+            const successAlert = document.getElementById('verifySuccess');
+            successAlert.textContent = `✅ Authentic product verified! ${product.name} (Batch: ${product.batch}). Scanned at: ${location}`;
+            successAlert.style.display = 'block';
+            
+            updateProductList();
+            
+            setTimeout(() => { successAlert.style.display = 'none'; }, 5000);
+        }
+
+        // Add sensor reading
+        function addSensorReading(event) {
+            event.preventDefault();
+            
+            const productId = document.getElementById('sensorProductId').value;
+            const sensorId = document.getElementById('sensorId').value;
+            const temp = document.getElementById('temperature').value;
+            const humidity = document.getElementById('humidity').value;
+            const data = document.getElementById('sensorData').value;
+            
+            const reading = {
+                productId: productId,
+                sensorId: sensorId,
+                temperature: temp / 100,
+                humidity: humidity,
+                data: data,
+                timestamp: new Date().toLocaleString()
+            };
+            
+            sensorReadings.unshift(reading);
+            
+            // Show success
+            const successAlert = document.getElementById('sensorSuccess');
+            successAlert.textContent = `✅ Sensor reading recorded! Temperature: ${reading.temperature}°C, Humidity: ${humidity}%`;
+            successAlert.style.display = 'block';
+            
+            // Update timeline
+            updateSensorTimeline();
+            
+            event.target.reset();
+            
+            setTimeout(() => { successAlert.style.display = 'none'; }, 5000);
+        }
+
+        // Update sensor timeline
+        function updateSensorTimeline() {
+            const timeline = document.getElementById('sensorTimeline');
+            const recentReadings = sensorReadings.slice(0, 5);
+            
+            let html = '<h3 style="margin-bottom: 20px; color: #333;">Recent Readings</h3>';
+            
+            recentReadings.forEach(reading => {
+                html += `
+                    <div class="timeline-item">
+                        <div class="timeline-content">
+                            <h4>Sensor: ${reading.sensorId}</h4>
+                            <p><strong>Product ID:</strong> ${reading.productId}</p>
+                            <p><strong>Temperature:</strong> ${reading.temperature}°C | <strong>Humidity:</strong> ${reading.humidity}%</p>
+                            <p><strong>Time:</strong> ${reading.timestamp}</p>
+                            ${reading.data ? `<p><strong>Notes:</strong> ${reading.data}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (recentReadings.length === 0) {
+                html += '<p style="color: #999; text-align: center;">No sensor readings yet</p>';
+            }
+            
+            timeline.innerHTML = html;
+        }
+
+        // Update product list
+        function updateProductList() {
+            const list = document.getElementById('productList');
+            
+            if (products.length === 0) {
+                return; // Keep sample products
+            }
+            
+            let html = '';
+            
+            products.forEach(product => {
+                html += `
+                    <div class="product-item">
+                        <h3>${product.name}</h3>
+                        <p><strong>Product ID:</strong> ${product.id}</p>
+                        <p><strong>Batch:</strong> ${product.batch}</p>
+                        <p><strong>QR Scans:</strong> ${product.scans}</p>
+                        <span class="badge ${product.isRecalled ? 'recalled' : 'active'}">
+                            ${product.isRecalled ? 'Recalled' : 'Active'}
+                        </span>
+                        ${product.isRecalled ? `<span class="badge critical">${product.recallSeverity}</span>` : ''}
+                    </div>
+                `;
+            });
+            
+            list.innerHTML = html;
+        }
+
+        // Generate QR hash (simulated)
+        function generateQRHash(productId, batchNumber) {
+            const combined = `${productId}-${batchNumber}-${Date.now()}`;
+            let hash = 0;
+            for (let i = 0; i < combined.length; i++) {
+                hash = ((hash << 5) - hash) + combined.charCodeAt(i);
+                hash = hash & hash;
+            }
+            return '0x' + Math.abs(hash).toString(16).padStart(64, '0').substring(0, 64);
+        }
+
+        // Initialize
+        updateStats();
+        updateSensorTimeline();
+    </script>
+</body>
+</html>
