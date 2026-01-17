@@ -1,8 +1,8 @@
-# TraceFlow 🔍📱🌡️🔐
+# TraceFlow 🔍📱🌡️🔐🚨
 
-> **Transparent Supply Chain Tracking with QR Code Integration, IoT Sensor Monitoring, and Multi-Signature Verification on Stacks Blockchain**
+> **Transparent Supply Chain Tracking with QR Code Integration, IoT Sensor Monitoring, Multi-Signature Verification, and Product Recall System on Stacks Blockchain**
 
-TraceFlow is a decentralized supply chain transparency solution built on the Stacks blockchain using Clarity smart contracts. It enables manufacturers, suppliers, and distributors to create immutable records of product journey from creation to consumer delivery, enhanced with integrated QR code generation, verification, real-time IoT sensor monitoring, and multi-signature verification for critical supply chain stages.
+TraceFlow is a decentralized supply chain transparency solution built on the Stacks blockchain using Clarity smart contracts. It enables manufacturers, suppliers, and distributors to create immutable records of product journey from creation to consumer delivery, enhanced with integrated QR code generation, verification, real-time IoT sensor monitoring, multi-signature verification for critical supply chain stages, and a comprehensive product recall system.
 
 ## 🎯 Overview
 
@@ -14,6 +14,7 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **IoT Sensor Integration**: Connect with temperature, humidity, and location sensors for real-time monitoring
 - **Environmental Monitoring**: Track temperature and humidity conditions throughout the supply chain
 - **Multi-Signature Verification**: Require multiple authorized parties to approve critical supply chain stages
+- **Product Recall System**: Rapidly recall products with automatic batch tracking and QR invalidation
 - **Distributed Trust**: Enhance security by requiring consensus from multiple stakeholders
 - **Emergency Pause**: Contract owner can pause all operations during security incidents or maintenance
 - **Stage Tracking**: Each supply chain stage is recorded with location, handler, and timestamp
@@ -23,6 +24,19 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **Transparency**: All data is publicly accessible and immutable
 
 ## 🚀 Features
+
+### Product Recall System 🚨 (NEW)
+- **Manufacturer-Initiated Recalls**: Only product manufacturers can initiate recalls for their products
+- **Automatic QR Invalidation**: QR codes are automatically invalidated when products are recalled
+- **Batch Tracking**: Track recall status by batch number with recall count
+- **Severity Levels**: Categorize recalls by severity (Critical, High, Medium, Low)
+- **Affected Batches**: Specify which batches are affected by the recall
+- **Recall Reasons**: Document detailed reasons for each recall
+- **Notification System**: Built-in notification flag for recall alerts
+- **Product Deactivation**: Recalled products are automatically deactivated
+- **Recall History**: Complete audit trail of all recalls with timestamps
+- **Batch Recall Queries**: Check if specific batches have been recalled
+- **Recall Analytics**: Track total recalls and recall frequency
 
 ### Core Functionality
 - **Product Registration**: Register new products with batch numbers, manufacturing details, and auto-generated QR codes
@@ -70,10 +84,11 @@ TraceFlow addresses the critical need for supply chain transparency in manufactu
 - **IoT Data Integrity**: Immutable storage of sensor readings and environmental data
 - **Multi-Party Consensus**: Distributed approval system for critical decisions
 - **Signature Management**: Track and verify multi-party signatures
+- **Recall Management**: Immutable record of all product recalls with batch tracking
 - **Real-time Monitoring**: Track products and environmental conditions in real-time
-- **Immutable Records**: All supply chain, QR scan, sensor, and signature data is permanently stored on blockchain
+- **Immutable Records**: All supply chain, QR scan, sensor, recall, and signature data is permanently stored on blockchain
 - **Access Control**: Role-based permissions for different participants
-- **Data Integrity**: Prevents tampering with supply chain, QR code, and sensor information
+- **Data Integrity**: Prevents tampering with supply chain, QR code, recall, and sensor information
 - **Security Controls**: Ability to invalidate compromised QR codes and deactivate sensors
 
 ## 📋 Prerequisites
@@ -107,6 +122,34 @@ clarinet check
 ```
 
 ## 📖 Usage
+
+### Product Recall System (NEW) 🚨
+
+#### Initiate a Product Recall
+```clarity
+;; Manufacturer recalls a product
+(contract-call? .traceflow recall-product 
+  u1  ;; product-id
+  "Contamination detected in production batch. Potential safety hazard."  ;; reason
+  "Critical"  ;; severity
+  "BATCH-2024-001, BATCH-2024-002")  ;; affected-batches
+```
+
+#### Query Recall Information
+```clarity
+;; Get recall details
+(contract-call? .traceflow get-recall-info u1)
+
+;; Check if a batch is recalled
+(contract-call? .traceflow is-batch-recalled "BATCH-2024-001")
+
+;; Get total number of recalls
+(contract-call? .traceflow get-total-recalls)
+
+;; Check product recall status
+(contract-call? .traceflow get-product u1)
+;; Returns product info including is-recalled and recall-id fields
+```
 
 ### Emergency Pause Controls
 ```clarity
@@ -213,8 +256,17 @@ clarinet check
 ;; Check if contract is paused
 (contract-call? .traceflow is-contract-paused)
 
-;; Get product information
+;; Get product information (includes recall status)
 (contract-call? .traceflow get-product u1)
+
+;; Get recall information
+(contract-call? .traceflow get-recall-info u1)
+
+;; Check if batch is recalled
+(contract-call? .traceflow is-batch-recalled "BATCH-2024-001")
+
+;; Get total recalls
+(contract-call? .traceflow get-total-recalls)
 
 ;; Get supply chain stage with multi-sig info
 (contract-call? .traceflow get-supply-chain-stage u1 u3)
@@ -244,7 +296,9 @@ clarinet check
 ## 🏗️ Contract Architecture
 
 ### Data Structures
-- **Products**: Store product information including manufacturer, name, batch number, and QR code hash
+- **Products**: Store product information including manufacturer, name, batch number, QR code hash, and recall status
+- **Product Recalls**: Track recall details including reason, severity, affected batches, and timestamps
+- **Batch Recalls**: Monitor recall status and count by batch number
 - **QR Code Registry**: Maps QR code hashes to product IDs with scan tracking and validity status
 - **QR Scan History**: Complete audit trail of all QR code scans with scanner, timestamp, and location
 - **IoT Sensors**: Registry of IoT sensors with type, owner, location, and status
@@ -258,6 +312,12 @@ clarinet check
 
 ### Key Functions
 
+#### Product Recall Functions 🚨 (NEW)
+- `recall-product`: Initiate product recall with reason, severity, and affected batches
+- `get-recall-info`: Retrieve detailed recall information by recall ID
+- `is-batch-recalled`: Check if a specific batch has been recalled
+- `get-total-recalls`: Get the total number of recalls in the system
+
 #### Emergency Control Functions 🚨
 - `pause-contract`: Immediately halt all state-changing operations
 - `unpause-contract`: Resume normal contract operations
@@ -268,7 +328,7 @@ clarinet check
 - `scan-qr-code`: Scan QR codes and record scan activity with location
 - `verify-qr-code`: Verify QR code authenticity against product ID
 - `invalidate-qr-code`: Invalidate QR codes for security or recalls
-- `get-product`: Retrieve product information
+- `get-product`: Retrieve product information (includes recall status)
 - `get-qr-code-info`: Get QR code details and scan statistics
 - `get-product-by-qr`: Retrieve product information using QR code
 - `get-qr-scan-history`: Get detailed scan history for QR codes
@@ -293,6 +353,32 @@ clarinet check
 - `get-handler-info`: Get handler information
 - `get-stage-count`: Get number of stages for a product
 - `get-reading-count`: Get number of sensor readings for a product
+
+## 🚨 Product Recall Workflow
+
+### Recall Initiation
+1. **Detection**: Manufacturer identifies issue (contamination, defect, safety concern)
+2. **Decision**: Determine severity level and affected batches
+3. **Execution**: Call `recall-product` with reason, severity, and batch information
+4. **Automatic Actions**:
+   - Product marked as recalled
+   - QR code automatically invalidated
+   - Product deactivated
+   - Batch tracking updated
+   - Recall notification flag set
+
+### Recall Verification
+- **Consumers**: Scan QR codes to check recall status
+- **Retailers**: Query batch numbers to identify recalled products
+- **Regulators**: Access complete recall history and audit trail
+- **Supply Chain**: Track recall propagation through the chain
+
+### Benefits
+- **Rapid Response**: Instant recall notification across the entire supply chain
+- **Traceability**: Track exactly which batches are affected
+- **Consumer Safety**: Prevent recalled products from reaching consumers
+- **Regulatory Compliance**: Maintain complete audit trail for authorities
+- **Brand Protection**: Quick action demonstrates commitment to safety
 
 ## 🚨 Emergency Pause Use Cases
 
@@ -363,6 +449,8 @@ Critical temperature-sensitive medications:
 
 ## 🔐 Security Features
 
+- **Product Recall System**: Rapid response to safety issues with automatic QR invalidation
+- **Batch Tracking**: Monitor recall status by batch number
 - **Emergency Pause**: Halt all operations immediately during security incidents
 - **QR Code Security**: Cryptographically generated QR codes prevent counterfeiting
 - **Scan Auditing**: Complete audit trail of all QR code scanning activity
@@ -371,6 +459,7 @@ Critical temperature-sensitive medications:
 - **IoT Data Integrity**: Immutable storage of sensor readings prevents data tampering
 - **Sensor Authentication**: Only registered sensors can submit readings
 - **Access Control**: Only authorized handlers and required signers can add stages and signatures
+- **Manufacturer Authorization**: Only product manufacturers can initiate recalls
 - **Owner Privileges**: Contract owner can verify stages, authorize handlers, and invalidate QR codes
 - **Input Validation**: Comprehensive input validation prevents invalid data
 - **Immutable Records**: Blockchain ensures data cannot be tampered with
@@ -385,6 +474,9 @@ clarinet test
 ```
 
 The test suite covers:
+- Product recall initiation and validation
+- Batch recall tracking
+- Recall information queries
 - Emergency pause and unpause functionality
 - Pause enforcement on state-changing operations
 - Product registration with QR code generation
@@ -418,6 +510,7 @@ The test suite covers:
 - Multi-sig for quality control: Pharmacist + Lab Technician
 - Temperature monitoring throughout cold chain
 - QR code verification at each pharmacy
+- **Rapid recall for contaminated batches**
 - Emergency pause during recall situations
 - Complete audit trail for regulatory compliance
 
@@ -425,6 +518,7 @@ The test suite covers:
 - Multi-sig for authenticity: Brand Representative + Independent Appraiser
 - QR codes prevent counterfeiting
 - Track location throughout supply chain
+- **Product recall for defective items**
 - Pause during security investigations
 - Verify authenticity at point of sale
 
@@ -432,6 +526,7 @@ The test suite covers:
 - Multi-sig for safety inspections: Health Inspector + Quality Manager
 - Temperature and humidity monitoring during transport
 - Track farm-to-table journey
+- **Instant recall for contaminated products**
 - Emergency pause during contamination events
 - Rapid recall capability with QR code invalidation
 
@@ -439,8 +534,16 @@ The test suite covers:
 - Multi-sig for critical inspections: Engineer + Safety Officer
 - Environmental monitoring during production
 - Complete documentation for each component
+- **Critical part recall system**
 - Pause during quality incidents
 - Regulatory compliance tracking
+
+### Consumer Electronics
+- Multi-sig for quality assurance
+- **Battery recall management**
+- Track warranty and service history
+- Prevent counterfeit components
+- Safety compliance tracking
 
 ## 📝 Error Codes
 
@@ -459,3 +562,23 @@ The test suite covers:
 - `ERR-NOT-REQUIRED-SIGNER (u112)`: Caller not a required signer
 - `ERR-STAGE-NOT-PENDING (u113)`: Stage already finalized
 - `ERR-CONTRACT-PAUSED (u114)`: Contract operations paused
+- `ERR-ALREADY-RECALLED (u115)`: Product already recalled (NEW)
+- `ERR-NOT-MANUFACTURER (u116)`: Only manufacturer can recall product (NEW)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License.
+
+## 🔗 Links
+
+- [Stacks Blockchain](https://www.stacks.co/)
+- [Clarity Documentation](https://docs.stacks.co/clarity/)
+- [Clarinet Documentation](https://docs.hiro.so/clarinet/)
+
+---
+
+Built with ❤️ on Stacks Blockchain
